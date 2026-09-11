@@ -57,7 +57,7 @@ training:
 validation:
   data_dir: /p/11212711-ragsms5/data/data/vali
   checkpoint: /p/11212711-ragsms5/results/torch_run/checkpoints  # a .pt file or a directory
-  output_dir: /p/11212711-ragsms5/results/validation
+  output_dir: /p/11212711-ragsms5/results/torch_run/validation
   batch_size: 1
   plots: 3                         # comparison figures per checkpoint, 0 disables them
 
