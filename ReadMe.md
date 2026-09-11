@@ -28,8 +28,8 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-The PyTorch implementation needs only `torch`, `numpy`, `matplotlib` and `pytest`.
-A CUDA device is picked up automatically and can be overridden with `--device`.
+The PyTorch implementation needs only `torch`, `numpy`, `matplotlib`, `pyyaml` and `pytest`.
+A CUDA device is picked up automatically and can be overridden with `train.device` in the settings file.
 
 
 ## Layout
@@ -38,6 +38,8 @@ A CUDA device is picked up automatically and can be overridden with `--device`.
 |------|---------|
 | [schemagan.py](schemagan.py) | The `SchemaGAN` class: `train`, `validate`, `test`, `predict`, `save`/`load` |
 | [config.py](config.py) | `DataConfig`, `ModelConfig`, `OptimConfig`, `TrainConfig`, `SchemaGANConfig` |
+| [cli.py](cli.py) | Reads the YAML settings file used by the three scripts |
+| [../configs/default.yaml](../configs/default.yaml) | All settings of a run |
 | [data.py](data.py) | CSV reading/writing, CPT simulation, normalisation, `CrossSectionDataset` |
 | [models/](models) | `UNetGenerator`, `PatchDiscriminator`, `ConvAutoencoder`, `AutoencoderGenerator` |
 | [metrics.py](metrics.py) | MAE, MSE and RMSE, per sample and aggregated |
@@ -67,14 +69,45 @@ implementation:
 
 Rows may appear in any order: the grid is filled through the `x` and `z` columns.
 
-### 2. Train
+### 2. Configure the run
+
+Every script reads one YAML file, [configs/default.yaml](configs/default.yaml) unless another path is
+given. Copy it and edit the values; omitted keys fall back to the dataclass defaults.
+
+```yaml
+data:
+  miss_rate: 0.99                  # keep ~1% of the columns as CPTs
+  min_distance: 51                 # minimum spacing between two CPTs
+
+model:
+  generator_filters: 64
+  discriminator_filters: 64
+
+optim:
+  lambda_l1: 100.0                 # weight of the reconstruction term
+
+train:
+  epochs: 10
+  batch_size: 1
+  device: auto                     # auto, cpu, cuda or cuda:N
+  seed: 42
+  checkpoint_every: 1              # 0 switches the periodic checkpoints off
+  sample_every: 1                  # 0 switches the periodic figures off
+
+training:
+  data_dir: synthetic_data/512x32/train
+  val_dir: synthetic_data/512x32/validation
+  output_dir: results/torch_run
+  resample_mask: false             # new CPT layout on every access
+```
+
+The `data`, `model`, `optim` and `train` sections describe the model and are stored in every checkpoint;
+the `training`, `validation` and `inference` sections hold the paths and options of the matching script.
+
+### 3. Train
 
 ```bash
-python training_schemaGAN_torch.py \
-    --data-dir synthetic_data/512x32/train \
-    --val-dir  synthetic_data/512x32/validation \
-    --output-dir results/torch_run \
-    --epochs 10 --batch-size 1 --seed 42
+python training_schemaGAN_torch.py configs/default.yaml
 ```
 
 The run directory receives:
@@ -86,43 +119,31 @@ results/torch_run/
 ├── history.png                      # d_loss / g_loss / g_l1 curves
 ├── history_per_iteration.csv
 ├── history_per_epoch.csv
-├── validation_summary.json          # only with --val-dir
+├── validation_summary.json          # only with training.val_dir
 ├── checkpoints/schemagan_epoch_000001.pt
 └── samples/epoch_000001_000.png
 ```
 
-Useful options: `--miss-rate` and `--min-distance` control the CPT simulation, `--lambda-l1` the weight of
-the reconstruction term, `--generator-filters`/`--discriminator-filters` the model size, `--resample-mask`
-draws a new CPT layout on every access instead of a fixed one per cross-section, and `--checkpoint-every 0`
-or `--sample-every 0` switch off the periodic artifacts. Run any script with `--help` for the full list.
-
-### 3. Validate
+### 4. Validate
 
 ```bash
-python validation_schemaGAN_torch.py \
-    --data-dir synthetic_data/512x32/validation \
-    --checkpoint results/torch_run/checkpoints \
-    --output-dir results/torch_run/validation
+python validation_schemaGAN_torch.py configs/default.yaml
 ```
 
-`--checkpoint` accepts a single `.pt` file or a directory, which makes it easy to watch the error evolve
-over the epochs. For every checkpoint the script writes `errors_<name>.csv` (MAE, MSE and RMSE per
+`validation.checkpoint` accepts a single `.pt` file or a directory, which makes it easy to watch the error
+evolve over the epochs. For every checkpoint the script writes `errors_<name>.csv` (MAE, MSE and RMSE per
 cross-section), `mae_histogram_<name>.png` and a few comparison figures, plus a combined `summary.csv`.
 
-### 4. Inference
+### 5. Inference
 
 ```bash
-python inference_schemaGAN_torch.py \
-    --input example_schematisations \
-    --checkpoint results/torch_run/final_model.pt \
-    --output-dir results/torch_run/inference \
-    --simulate-cpt
+python inference_schemaGAN_torch.py configs/default.yaml
 ```
 
-`--simulate-cpt` masks complete cross-sections to obtain the sparse input; leave it out when the CSV files
-already hold CPT-like data with zeros at the unmeasured pixels. Each input produces
-`<name>_generated.csv` in the same long format and a `<name>_generated.png` figure (`--no-plots` skips the
-figures). The image geometry and the IC range are read from the checkpoint.
+`inference.simulate_cpt` masks complete cross-sections to obtain the sparse input; switch it off when the
+CSV files already hold CPT-like data with zeros at the unmeasured pixels. Each input produces
+`<name>_generated.csv` in the same long format and a `<name>_generated.png` figure (`inference.plots: false`
+skips the figures). The image geometry and the IC range are read from the checkpoint.
 
 Example of the results:
 ![Schematisations](../static/plot_acc_000000.png)

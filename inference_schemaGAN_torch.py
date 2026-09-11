@@ -2,23 +2,21 @@
 """Generate complete cross-sections from CPT-like input with a trained schemaGAN.
 
 The input CSVs use the same long format as the synthetic data (columns
-``x``, ``z``, ``IC``). Unmeasured pixels are expected to be zero; add
-``--simulate-cpt`` to derive the sparse input from complete cross-sections.
+``x``, ``z``, ``IC``). Unmeasured pixels are expected to be zero; set
+``inference.simulate_cpt`` to derive the sparse input from complete
+cross-sections.
 
 The image geometry and the IC range are taken from the checkpoint, since the
-generator can only consume the representation it was trained on.
+generator can only consume the representation it was trained on. All other
+settings are read from a YAML file; see ``configs/default.yaml``.
 
 Example::
 
-    python inference_schemaGAN_torch.py \
-        --input example_schematisations \
-        --checkpoint results/torch_run/final_model.pt \
-        --output-dir results/torch_run/inference --simulate-cpt
+    python inference_schemaGAN_torch.py configs/default.yaml
 """
 
 from __future__ import annotations
 
-import argparse
 import sys
 from pathlib import Path
 
@@ -27,7 +25,7 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from schemaGAN_torch import SchemaGAN
-from schemaGAN_torch.cli import add_runtime_arguments
+from schemaGAN_torch.cli import InferenceSettings, load_settings
 from schemaGAN_torch.data import (
     apply_mask,
     cpt_like_mask,
@@ -37,25 +35,6 @@ from schemaGAN_torch.data import (
     write_cross_section_csv,
 )
 from schemaGAN_torch.visualize import plot_grids
-
-
-def build_parser() -> argparse.ArgumentParser:
-    """Define the inference command line."""
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--input", required=True, help="a CSV cross-section or a directory of them")
-    parser.add_argument("--checkpoint", required=True, help="a .pt checkpoint written during training")
-    parser.add_argument("--output-dir", default="results/schemagan_torch/inference")
-    parser.add_argument("--batch-size", type=int, default=1)
-    parser.add_argument(
-        "--simulate-cpt",
-        action="store_true",
-        help="treat the input as complete cross-sections and mask them first",
-    )
-    parser.add_argument("--miss-rate", type=float, default=None, help="override the masking rate")
-    parser.add_argument("--min-distance", type=int, default=None, help="override the CPT spacing")
-    parser.add_argument("--no-plots", action="store_true", help="only write CSV output")
-    add_runtime_arguments(parser)
-    return parser
 
 
 def collect_inputs(path: str | Path) -> list[Path]:
@@ -84,23 +63,23 @@ def main(argv: list[str] | None = None) -> int:
     Returns:
         The process exit code.
     """
-    args = build_parser().parse_args(argv)
-    output_dir = Path(args.output_dir)
+    config, settings = load_settings(argv, __doc__, "inference", InferenceSettings)
+    output_dir = Path(settings.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    model = SchemaGAN.load(args.checkpoint, device=args.device)
+    model = SchemaGAN.load(settings.checkpoint, device=config.train.device)
     data = model.config.data
     print(f"device: {model.device}")
 
-    files = collect_inputs(args.input)
-    rng = np.random.default_rng(args.seed)
-    miss_rate = data.miss_rate if args.miss_rate is None else args.miss_rate
-    min_distance = data.min_distance if args.min_distance is None else args.min_distance
+    files = collect_inputs(settings.input)
+    rng = np.random.default_rng(config.train.seed)
+    miss_rate = data.miss_rate if settings.miss_rate is None else settings.miss_rate
+    min_distance = data.min_distance if settings.min_distance is None else settings.min_distance
 
     grids = []
     for file in files:
         grid = read_cross_section_csv(file, data.image_height, data.image_width)
-        if args.simulate_cpt:
+        if settings.simulate_cpt:
             mask = cpt_like_mask(
                 data.image_height,
                 data.image_width,
@@ -115,13 +94,13 @@ def main(argv: list[str] | None = None) -> int:
     sources = np.stack(grids)
     predictions = model.predict(
         normalize_ic(sources, data.min_ic, data.max_ic),
-        batch_size=args.batch_size,
+        batch_size=settings.batch_size,
         denormalize=True,
     ).numpy()[:, 0]
 
     for file, source, prediction in zip(files, sources, predictions):
         write_cross_section_csv(output_dir / f"{file.stem}_generated.csv", prediction)
-        if not args.no_plots:
+        if settings.plots:
             plot_grids(
                 [
                     ("CPT-like input", source, data.min_ic, data.max_ic, "viridis"),

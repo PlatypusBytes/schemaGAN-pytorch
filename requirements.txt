@@ -2,6 +2,7 @@ cuda-toolkit==13.2.1
 matplotlib==3.11.1
 numpy==2.5.2
 pytest==9.1.1
+PyYAML==6.0.3
 scipy==1.18.1
 torch==2.14.0+cu132
 torchvision==0.29.0+cu132

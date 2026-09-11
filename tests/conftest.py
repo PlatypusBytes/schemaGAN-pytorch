@@ -7,6 +7,7 @@ from pathlib import Path
 
 import numpy as np
 import pytest
+import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
@@ -71,6 +72,14 @@ def tiny_config(**train_overrides) -> SchemaGANConfig:
 def config() -> SchemaGANConfig:
     """The small configuration used by most tests."""
     return tiny_config()
+
+
+def write_config_file(path: Path, **sections: dict) -> Path:
+    """Write a YAML settings file with the tiny model and the given script sections."""
+    document = tiny_config().to_dict()
+    document.update(sections)
+    path.write_text(yaml.safe_dump(document))
+    return path
 
 
 @pytest.fixture

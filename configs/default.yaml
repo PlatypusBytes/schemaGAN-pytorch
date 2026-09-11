@@ -1,0 +1,73 @@
+# schemaGAN settings. Every entry point reads one of these files:
+#
+#   python training_schemaGAN_torch.py   configs/default.yaml
+#   python validation_schemaGAN_torch.py configs/default.yaml
+#   python inference_schemaGAN_torch.py  configs/default.yaml
+
+# Cross-section geometry and how the sparse CPT-like input is simulated.
+data:
+  image_height: 32                 # depth pixels
+  image_width: 512                 # horizontal pixels
+  miss_rate: 0.99                  # fraction of the columns without measurement
+  min_distance: 51                 # minimum pixel spacing between two CPTs
+  min_ic: 0.0                      # lower bound of the IC range, mapped to -1
+  max_ic: 4.3                      # upper bound of the IC range, mapped to +1
+  max_missing_depth_fraction: 0.5  # largest share of a CPT that can be cut from the bottom
+
+# Architecture of the generator and the discriminator.
+model:
+  in_channels: 1
+  out_channels: 1
+  generator_filters: 64
+  discriminator_filters: 64
+  dropout: 0.5
+  stochastic_inference: true       # pix2pix keeps dropout active at inference
+  latent_channels: null            # channels of an external latent code, null disables the fusion
+
+# Optimiser and loss weighting.
+optim:
+  learning_rate: 0.0002
+  beta1: 0.5
+  beta2: 0.999
+  lambda_l1: 100.0                 # weight of the L1 reconstruction term
+  discriminator_loss_weight: 0.5
+
+# Training loop. `device` and `seed` are also used by validation and inference.
+train:
+  epochs: 10
+  batch_size: 1
+  shuffle: true
+  num_workers: 0                   # keep at 0 when resampling masks
+  device: auto                     # auto, cpu, cuda or cuda:N
+  seed: null
+  checkpoint_every: 1              # 0 disables checkpoints
+  sample_every: 1                  # 0 disables sample figures
+  log_every: 1                     # 0 disables per-batch progress lines
+
+# training_schemaGAN_torch.py
+training:
+  data_dir: synthetic_data/512x32/train
+  val_dir: synthetic_data/512x32/validation  # null skips validation
+  output_dir: results/schemagan_torch
+  resample_mask: false             # new CPT layout on every access
+  verbose: true
+
+# validation_schemaGAN_torch.py
+validation:
+  data_dir: synthetic_data/512x32/validation
+  checkpoint: results/schemagan_torch/checkpoints  # a .pt file or a directory
+  output_dir: results/schemagan_torch/validation
+  batch_size: 1
+  plots: 3                         # comparison figures per checkpoint, 0 disables them
+
+# inference_schemaGAN_torch.py. The geometry and the IC range come from the
+# checkpoint, not from the `data` section above.
+inference:
+  input: example_schematisations   # a CSV cross-section or a directory of them
+  checkpoint: results/schemagan_torch/final_model.pt
+  output_dir: results/schemagan_torch/inference
+  batch_size: 1
+  simulate_cpt: true               # mask complete cross-sections before generating
+  miss_rate: null                  # overrides the checkpoint when set
+  min_distance: null               # overrides the checkpoint when set
+  plots: true

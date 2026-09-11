@@ -1,17 +1,15 @@
 #!/usr/bin/env python
 """Validate one or more trained schemaGAN checkpoints on labelled cross-sections.
 
+All settings are read from a YAML file; see ``configs/default.yaml``.
+
 Example::
 
-    python validation_schemaGAN_torch.py \
-        --data-dir synthetic_data/512x32/validation \
-        --checkpoint results/torch_run/checkpoints \
-        --output-dir results/torch_run/validation
+    python validation_schemaGAN_torch.py configs/default.yaml
 """
 
 from __future__ import annotations
 
-import argparse
 import csv
 import sys
 from pathlib import Path
@@ -19,21 +17,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from schemaGAN_torch import CrossSectionDataset, SchemaGAN
-from schemaGAN_torch.cli import add_data_arguments, add_runtime_arguments, data_config_from_args
+from schemaGAN_torch.cli import ValidationSettings, load_settings
 from schemaGAN_torch.visualize import plot_error_histogram
-
-
-def build_parser() -> argparse.ArgumentParser:
-    """Define the validation command line."""
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--data-dir", required=True, help="directory with the validation cross-sections")
-    parser.add_argument("--checkpoint", required=True, help="a .pt checkpoint or a directory of them")
-    parser.add_argument("--output-dir", default="results/schemagan_torch/validation")
-    parser.add_argument("--batch-size", type=int, default=1)
-    parser.add_argument("--plots", type=int, default=3, help="number of comparison figures per model")
-    add_data_arguments(parser)
-    add_runtime_arguments(parser)
-    return parser
 
 
 def collect_checkpoints(path: str | Path) -> list[Path]:
@@ -62,24 +47,23 @@ def main(argv: list[str] | None = None) -> int:
     Returns:
         The process exit code.
     """
-    args = build_parser().parse_args(argv)
-    data_config = data_config_from_args(args)
-    output_dir = Path(args.output_dir)
+    config, settings = load_settings(argv, __doc__, "validation", ValidationSettings)
+    output_dir = Path(settings.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    dataset = CrossSectionDataset(args.data_dir, data_config, seed=args.seed)
+    dataset = CrossSectionDataset(settings.data_dir, config.data, seed=config.train.seed)
     print(f"validation cross-sections: {len(dataset)}")
 
     summaries: list[dict[str, float | str]] = []
-    for checkpoint in collect_checkpoints(args.checkpoint):
-        model = SchemaGAN.load(checkpoint, device=args.device)
-        result = model.validate(dataset, batch_size=args.batch_size)
+    for checkpoint in collect_checkpoints(settings.checkpoint):
+        model = SchemaGAN.load(checkpoint, device=config.train.device)
+        result = model.validate(dataset, batch_size=settings.batch_size)
 
         name = checkpoint.stem
         result.to_csv(output_dir / f"errors_{name}.csv")
         plot_error_histogram(result.mae, output_dir / f"mae_histogram_{name}.png")
-        if args.plots > 0:
-            model.save_samples(dataset, output_dir / name, prefix="validation", limit=args.plots)
+        if settings.plots > 0:
+            model.save_samples(dataset, output_dir / name, prefix="validation", limit=settings.plots)
 
         summary = result.summary
         summaries.append({"checkpoint": name, **summary})
