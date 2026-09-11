@@ -57,7 +57,12 @@ def main(argv: list[str] | None = None) -> int:
     summaries: list[dict[str, float | str]] = []
     for checkpoint in collect_checkpoints(settings.checkpoint):
         model = SchemaGAN.load(checkpoint, device=config.train.device)
-        result = model.validate(dataset, batch_size=settings.batch_size)
+        # the checkpoint carries its own train section, so the file being read wins
+        result = model.validate(
+            dataset,
+            batch_size=settings.batch_size,
+            denormalize=config.train.denormalize_metrics,
+        )
 
         name = checkpoint.stem
         result.to_csv(output_dir / f"errors_{name}.csv")

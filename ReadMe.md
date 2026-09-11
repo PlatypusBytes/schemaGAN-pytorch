@@ -90,9 +90,10 @@ train:
   epochs: 10
   batch_size: 1
   device: auto                     # auto, cpu, cuda or cuda:N
-  seed: 42
+  seed: 14
   checkpoint_every: 1              # 0 switches the periodic checkpoints off
   sample_every: 1                  # 0 switches the periodic figures off
+  denormalize_metrics: true        # false reports validation errors in [-1, 1]
 
 training:
   data_dir: synthetic_data/512x32/train

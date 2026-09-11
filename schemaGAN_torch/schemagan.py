@@ -351,14 +351,17 @@ class SchemaGAN:
         return prediction
 
     @torch.no_grad()
-    def validate(self, data, *, batch_size: int | None = None, denormalize: bool = True) -> ValidationResult:
+    def validate(self, data, *, batch_size: int | None = None, denormalize: bool | None = None) -> ValidationResult:
         """Score a labelled dataset, one error per cross-section.
 
         Args:
             data: A ``Dataset``, a ``DataLoader`` or a ``(source, target)`` pair.
             batch_size: Number of cross-sections scored at once.
-            denormalize: Report errors in IC units rather than in ``[-1, 1]``.
+            denormalize: Report errors in IC units rather than in ``[-1, 1]``;
+                falls back to ``config.train.denormalize_metrics``.
         """
+        if denormalize is None:
+            denormalize = self.config.train.denormalize_metrics
         loader = self._as_loader(data, batch_size, shuffle=False)
         self.generator.eval()
         collected: dict[str, list[torch.Tensor]] = {"mae": [], "mse": [], "rmse": []}

@@ -128,6 +128,8 @@ class TrainConfig:
         checkpoint_every: Epochs between checkpoints; ``0`` disables them.
         sample_every: Epochs between sample figures; ``0`` disables them.
         log_every: Batches between progress lines; ``0`` disables them.
+        denormalize_metrics: Report validation errors in IC units instead of in
+            the normalised ``[-1, 1]`` range.
     """
 
     epochs: int = 10
@@ -139,6 +141,7 @@ class TrainConfig:
     checkpoint_every: int = 1
     sample_every: int = 1
     log_every: int = 1
+    denormalize_metrics: bool = True
 
     def __post_init__(self) -> None:
         """Reject loop settings that would never produce an update."""

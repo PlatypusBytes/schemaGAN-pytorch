@@ -34,29 +34,30 @@ optim:
 
 # Training loop. `device` and `seed` are also used by validation and inference.
 train:
-  epochs: 10
+  epochs: 50
   batch_size: 1
   shuffle: true
   num_workers: 0                   # keep at 0 when resampling masks
   device: auto                     # auto, cpu, cuda or cuda:N
-  seed: null
+  seed: 14
   checkpoint_every: 1              # 0 disables checkpoints
   sample_every: 1                  # 0 disables sample figures
   log_every: 1                     # 0 disables per-batch progress lines
+  denormalize_metrics: true        # false reports validation errors in [-1, 1]
 
 # training_schemaGAN_torch.py
 training:
-  data_dir: synthetic_data/512x32/train
-  val_dir: synthetic_data/512x32/validation  # null skips validation
-  output_dir: results/schemagan_torch
+  data_dir: /p/11212711-ragsms5/data/data/train
+  val_dir: /p/11212711-ragsms5/data/data/vali  # null skips validation
+  output_dir: /p/11212711-ragsms5/results/torch_run
   resample_mask: false             # new CPT layout on every access
   verbose: true
 
 # validation_schemaGAN_torch.py
 validation:
-  data_dir: synthetic_data/512x32/validation
-  checkpoint: results/schemagan_torch/checkpoints  # a .pt file or a directory
-  output_dir: results/schemagan_torch/validation
+  data_dir: /p/11212711-ragsms5/data/data/vali
+  checkpoint: /p/11212711-ragsms5/results/torch_run/checkpoints  # a .pt file or a directory
+  output_dir: /p/11212711-ragsms5/results/validation
   batch_size: 1
   plots: 3                         # comparison figures per checkpoint, 0 disables them
 
@@ -64,8 +65,8 @@ validation:
 # checkpoint, not from the `data` section above.
 inference:
   input: example_schematisations   # a CSV cross-section or a directory of them
-  checkpoint: results/schemagan_torch/final_model.pt
-  output_dir: results/schemagan_torch/inference
+  checkpoint: /p/11212711-ragsms5/results/torch_run/schemagan_epoch_000050.pt
+  output_dir: /p/11212711-ragsms5/results/torch_run/inference
   batch_size: 1
   simulate_cpt: true               # mask complete cross-sections before generating
   miss_rate: null                  # overrides the checkpoint when set
