@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "schemagan-torch"
 description = "PyTorch implementation of SchemaGAN, a conditional GAN that builds subsoil schematisations from CPT data"
 readme = "ReadMe.md"
-requires-python = ">=3.13"
+requires-python = ">=3.12"
 license = "MIT"
 license-files = ["LICENSE"]
 authors = [{name="F.A. Campos Montero", email = "fabian.camposmontero@deltares.nl"},
