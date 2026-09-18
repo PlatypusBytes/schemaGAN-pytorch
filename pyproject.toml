@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "schemagan-torch"
+description = "PyTorch implementation of SchemaGAN, a conditional GAN that builds subsoil schematisations from CPT data"
+readme = "ReadMe.md"
+requires-python = ">=3.13"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{name="F.A. Campos Montero", email = "fabian.camposmontero@deltares.nl"},
+           {name="B. Zuada Coelho", email = "bruno.zuadacoelho@deltares.nl"}]
+classifiers = [
+    "Programming Language :: Python :: 3",
+]
+dynamic = ["version"]
+
+dependencies = [
+    "matplotlib>=3.8",
+    "numpy>=2.0",
+    "PyYAML>=6.0",
+    "torch>=2.4",
+]
+
+[project.optional-dependencies]
+testing = ["pytest>=8.0"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.setuptools.dynamic]
+version = {attr = "schemaGAN_torch.__version__"}
+
+[tool.setuptools.packages.find]
+include = ["schemaGAN_torch*"]
+
+[project.urls]
+Homepage = "https://github.com/PlatypusBytes/schemaGAN-pytorch"
