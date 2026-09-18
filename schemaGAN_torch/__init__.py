@@ -34,6 +34,7 @@ from .models import (
     UNetGenerator,
     build_discriminator,
     build_generator,
+    train_autoencoder,
 )
 from .schemagan import History, SchemaGAN, ValidationResult, resolve_device, set_seed
 
@@ -62,6 +63,7 @@ __all__ = [
     "read_cross_section_csv",
     "resolve_device",
     "set_seed",
+    "train_autoencoder",
     "write_cross_section_csv",
 ]
 

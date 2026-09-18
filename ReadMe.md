@@ -223,32 +223,52 @@ C64 → C128 → C256 → C512 → C512 → C512 → 1.
 both optimised with Adam (`lr = 2e-4`, `β₁ = 0.5`).
 
 ---
-<!--
-## Connecting an auto-encoder
+## Finer depth resolution with an auto-encoder
 
-`SchemaGAN` accepts any `nn.Module` as generator or discriminator, and `UNetGenerator` exposes `encode`,
-`decode` and `fuse_latent`, so an auto-encoder can be attached without touching the training loop:
+The generator grid is `32 x 512`, i.e. about one pixel per metre of depth, far coarser than a CPT. Two ways
+to feed it finer profiles:
+
+1. **Just train at the finer size.** `UNetGenerator` and `PatchDiscriminator` are fully convolutional and
+   accept any multiple of `32 x 512`, so `data.image_height: 320` (10 cm per pixel) works with no code
+   change and no auto-encoder; only memory and time grow with the pixel count. Keep the width at 512, since
+   CPTs are tens of metres apart and the horizontal axis gains nothing from more pixels.
+2. **Compress with an auto-encoder** when the cross-sections are too large to train on directly.
+   `ConvAutoencoder` maps a `(H, W)` cross-section onto a `(latent_channels, 32, 512)` code with
+   per-axis compression factors, the generator runs on that code and the decoder expands the result, so the
+   L1 loss and the discriminator still see full-size cross-sections. `AutoencoderGenerator` wires the three
+   pieces into a drop-in generator:
 
 ```python
-from schemaGAN_torch import SchemaGAN, SchemaGANConfig
-from schemaGAN_torch.models import AutoencoderGenerator, ConvAutoencoder, UNetGenerator
+from schemaGAN_torch import CrossSectionDataset, SchemaGAN, SchemaGANConfig
+from schemaGAN_torch.models import AutoencoderGenerator, ConvAutoencoder, UNetGenerator, train_autoencoder
 
 config = SchemaGANConfig()
-config.model.latent_channels = 64          # width of the code fused into the bottleneck
+config.data.image_height = 320               # 10 cm per depth pixel; the width stays 512
+
+train_data = CrossSectionDataset("data/320x512/train", config.data, seed=42)
+val_data = CrossSectionDataset("data/320x512/validation", config.data, seed=42)
+
+# (320, 512) -> (8, 32, 512): strides (2, 1) then (5, 1). column_wise keeps every CPT
+# column an independent 1D profile, so the empty columns never bleed into it.
+autoencoder = ConvAutoencoder.for_geometry(config.data.image_shape, (32, 512), latent_channels=8, column_wise=True)
+train_autoencoder(autoencoder, train_data, epochs=20, batch_size=4, device=config.train.device)
 
 generator = AutoencoderGenerator(
-    ConvAutoencoder(latent_channels=64),
-    UNetGenerator(latent_channels=64),
-    mode="latent",                          # or "preprocess"
-    freeze_autoencoder=True,                # keep a pre-trained auto-encoder fixed
+    autoencoder,
+    UNetGenerator(in_channels=8, out_channels=8),   # the generator works on the code
+    mode="compress",
+    freeze_autoencoder=True,
 )
-
-model = SchemaGAN(config, generator=generator)
+model = SchemaGAN(config, generator=generator)      # the discriminator stays in pixel space
+model.train(train_data, val_data=val_data, output_dir="results/torch_320")
 ```
 
-`mode="latent"` feeds the auto-encoder code into the generator bottleneck, while `mode="preprocess"` runs
-the generator on the auto-encoder reconstruction. When reloading such a model, pass the same module to
-`SchemaGAN.load(path, generator=...)`, since only the weights are stored. -->
+The auto-encoder is trained on the dense targets *and* the CPT-like sources, so the same encoder serves
+both, and its code is `tanh`-bounded like the generator output. Its reconstruction error is a floor on
+the final error, so check `autoencoder(target)` against `target` before training the GAN. Other modes:
+`mode="latent"` fuses the code into the generator bottleneck of a `UNetGenerator(latent_channels=...)`
+and `mode="preprocess"` runs the generator on the reconstruction. When reloading such a model, pass the
+same module to `SchemaGAN.load(path, generator=...)`, since only the weights are stored.
 
 
 

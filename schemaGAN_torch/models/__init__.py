@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from ..config import ModelConfig
-from .autoencoder import AutoencoderGenerator, ConvAutoencoder
+from .autoencoder import AutoencoderGenerator, ConvAutoencoder, compression_strides, train_autoencoder
 from .blocks import (
     DecoderBlock,
     EncoderBlock,
@@ -28,8 +28,10 @@ __all__ = [
     "UNetGenerator",
     "build_discriminator",
     "build_generator",
+    "compression_strides",
     "init_conv_weights",
     "same_padding",
+    "train_autoencoder",
 ]
 
 

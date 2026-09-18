@@ -114,7 +114,8 @@ class UNetGenerator(nn.Module):
         """Merge an external latent code into the bottleneck feature map.
 
         The code may be flat (``(n, c)``) or spatial (``(n, c, h, w)``); it is
-        resized to the bottleneck resolution before being concatenated.
+        average-pooled (or repeated, when smaller) to the bottleneck resolution
+        before being concatenated.
         """
         if self.latent_fusion is None:
             raise RuntimeError("generator was built without latent_channels")
@@ -125,7 +126,9 @@ class UNetGenerator(nn.Module):
         if latent.shape[1] != self.latent_channels:
             raise ValueError(f"latent has {latent.shape[1]} channels, expected {self.latent_channels}")
         if latent.shape[-2:] != bottleneck.shape[-2:]:
-            latent = F.interpolate(latent, size=bottleneck.shape[-2:], mode="nearest")
+            # Nearest interpolation would keep a single pixel of a larger code;
+            # adaptive pooling averages it (and repeats a smaller one).
+            latent = F.adaptive_avg_pool2d(latent, bottleneck.shape[-2:])
         return self.latent_fusion(torch.cat([bottleneck, latent], dim=1))
 
     def decode(
