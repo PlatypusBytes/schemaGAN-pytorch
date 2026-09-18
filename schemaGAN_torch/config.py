@@ -101,8 +101,8 @@ class OptimConfig:
         beta1: Adam first moment decay; ``0.5`` as in the pix2pix paper.
         beta2: Adam second moment decay.
         lambda_l1: Weight of the L1 reconstruction term of the generator loss.
-        discriminator_loss_weight: Weight applied to the summed real/fake
-            discriminator loss.
+        discriminator_loss_weight: Weight applied to the discriminator loss of
+            each of its two steps per batch (real pair, then generated pair).
     """
 
     learning_rate: float = 2e-4
@@ -110,7 +110,7 @@ class OptimConfig:
     beta2: float = 0.999
     # Weight of the L1 reconstruction term of the generator loss.
     lambda_l1: float = 100.0
-    # Weight applied to the summed real/fake discriminator loss.
+    # Weight applied to the discriminator loss of each of its two steps per batch.
     discriminator_loss_weight: float = 0.5
 
 
@@ -137,7 +137,7 @@ class TrainConfig:
     shuffle: bool = True
     num_workers: int = 0
     device: str = "auto"
-    seed: int | None = None
+    seed: int | None = 14
     checkpoint_every: int = 1
     sample_every: int = 1
     log_every: int = 1

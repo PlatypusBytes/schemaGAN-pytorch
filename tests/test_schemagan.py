@@ -98,6 +98,15 @@ class TestTrainStep:
         assert not torch.equal(before_g, model.generator.output[0].deconv.weight)
         assert not torch.equal(before_d, model.discriminator.model[0].conv.conv.weight)
 
+    def test_discriminator_takes_two_steps_per_batch(self, model, dataset, monkeypatch):
+        steps: list[int] = []
+        original = model.optimizer_d.step
+        monkeypatch.setattr(model.optimizer_d, "step", lambda *a, **k: (steps.append(1), original(*a, **k))[1])
+        metrics = model.train_step(*dataset[0])
+        assert len(steps) == 2
+        expected = 0.5 * (metrics["d_loss_real"] + metrics["d_loss_fake"])
+        assert metrics["d_loss"] == pytest.approx(expected, rel=1e-5)
+
     def test_the_l1_term_dominates_the_generator_loss(self, model, dataset):
         metrics = model.train_step(*dataset[0])
         expected = metrics["g_adversarial"] + model.config.optim.lambda_l1 * metrics["g_l1"]

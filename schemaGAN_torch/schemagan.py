@@ -199,6 +199,11 @@ class SchemaGAN:
     def train_step(self, source: torch.Tensor, target: torch.Tensor) -> dict[str, float]:
         """Update the discriminator and the generator on a single batch.
 
+        As in the original implementation, the discriminator takes two optimiser
+        steps per batch: one on the real pair, then one on the generated pair.
+        Each step minimises ``discriminator_loss_weight * BCE`` and the reported
+        ``d_loss`` is the mean of the two step losses.
+
         Args:
             source: CPT-like input in ``[-1, 1]``.
             target: Matching complete cross-section in ``[-1, 1]``.
@@ -211,15 +216,23 @@ class SchemaGAN:
         optim = self.config.optim
 
         self.optimizer_d.zero_grad(set_to_none=True)
+        real_logits = self.discriminator(source, target)
+        d_real = optim.discriminator_loss_weight * self.adversarial_loss(
+            real_logits, torch.ones_like(real_logits)
+        )
+        d_real.backward()
+        self.optimizer_d.step()
+
+        self.optimizer_d.zero_grad(set_to_none=True)
         with torch.no_grad():
             detached_fake = self.generator(source)
-        real_logits = self.discriminator(source, target)
         fake_logits = self.discriminator(source, detached_fake)
-        d_real = self.adversarial_loss(real_logits, torch.ones_like(real_logits))
-        d_fake = self.adversarial_loss(fake_logits, torch.zeros_like(fake_logits))
-        d_loss = optim.discriminator_loss_weight * (d_real + d_fake)
-        d_loss.backward()
+        d_fake = optim.discriminator_loss_weight * self.adversarial_loss(
+            fake_logits, torch.zeros_like(fake_logits)
+        )
+        d_fake.backward()
         self.optimizer_d.step()
+        d_loss = 0.5 * (d_real + d_fake)
 
         self.optimizer_g.zero_grad(set_to_none=True)
         fake = self.generator(source)

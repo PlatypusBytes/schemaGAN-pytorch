@@ -218,7 +218,8 @@ blocks downsample the horizontal axis only, with a `(1, 2)` stride.
 **Discriminator** — PatchGAN over the concatenated (source, target) pair, producing a 16×16 patch map:
 C64 → C128 → C256 → C512 → C512 → C512 → 1.
 
-**Objective** — `BCE + 100 · L1` for the generator, `0.5 · (BCE_real + BCE_fake)` for the discriminator,
+**Objective** — `BCE + 100 · L1` for the generator; the discriminator takes two steps per batch,
+`0.5 · BCE_real` then `0.5 · BCE_fake`,
 both optimised with Adam (`lr = 2e-4`, `β₁ = 0.5`).
 
 ---

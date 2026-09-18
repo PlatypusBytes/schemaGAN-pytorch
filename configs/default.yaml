@@ -34,7 +34,7 @@ optim:
 
 # Training loop. `device` and `seed` are also used by validation and inference.
 train:
-  epochs: 50
+  epochs: 10
   batch_size: 1
   shuffle: true
   num_workers: 0                   # keep at 0 when resampling masks
